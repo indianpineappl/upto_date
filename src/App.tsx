@@ -53,7 +53,7 @@ function App() {
         <p>Stay informed about what's happening around you</p>
       </header>
       <main>
-        <TopicSwipeView />
+        <TopicSwipeView onDigDeeper={handleDigDeeper} />
       </main>
     </div>
   );

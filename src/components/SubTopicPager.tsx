@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SubTopic, Topic } from '../types';
 import SubTopicDetail from './SubTopicDetail';
+import backendService from '../services/backendService';
 
 const PagerContainer = styled(motion.div)`
   position: absolute;
@@ -150,6 +151,12 @@ const SubTopicPager: React.FC<SubTopicPagerProps> = ({ topic, initialIndex = 0, 
   const handleViewDetail = () => {
     setSelectedSubTopic(currentSubTopic);
     setShowDetail(true);
+
+    backendService.sendEvents({
+      bucketId: '',
+      snapshotDate: '',
+      events: [{ type: 'subtopic_open', topicId: topic.id, subtopicId: currentSubTopic.id }]
+    }).catch(() => {});
   };
   
   const handleBackFromDetail = () => {

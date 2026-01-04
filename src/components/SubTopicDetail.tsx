@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { motion } from 'framer-motion';
 import { SubTopic, Topic } from '../types';
-import llmService from '../services/llmService';
 
 const DetailContainer = styled(motion.div)`
   position: absolute;
@@ -105,23 +104,9 @@ const SubTopicDetail: React.FC<SubTopicDetailProps> = ({ topic, subTopic, onBack
       try {
         setLoading(true);
         setError(null);
-        
-        // Generate summary using LLM
-        const generatedSummary = await llmService.summarizeContent(
-          subTopic.summary, 
-          `${topic.title}: ${subTopic.title}`
-        );
-        
-        setSummary(generatedSummary);
-        
-        // Generate image
-        const imagePrompt = await llmService.generateImagePrompt(
-          `${topic.title}: ${subTopic.title}`
-        );
-        
-        const generatedImageUrl = await llmService.generateImage(imagePrompt);
-        setImageUrl(generatedImageUrl);
-        
+
+        setSummary(subTopic.summary);
+        setImageUrl(topic.imageUrl || '');
         setLoading(false);
       } catch (err) {
         console.error('Error fetching summary or image:', err);

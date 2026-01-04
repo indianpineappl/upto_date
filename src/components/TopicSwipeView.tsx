@@ -4,10 +4,8 @@ import { motion } from 'framer-motion';
 import TopicCard from './TopicCard';
 import { Topic, UserPreference } from '../types';
 import locationService from '../services/locationService';
-import twitterService from '../services/twitterService';
-import newsService from '../services/newsService';
-import llmService from '../services/llmService';
 import preferenceService from '../services/preferenceService';
+import backendService from '../services/backendService';
 
 const SwipeContainer = styled.div`
   position: relative;
@@ -65,12 +63,19 @@ const ProgressDot = styled.div<{ active: boolean }>`
   transition: background 0.3s ease;
 `;
 
-const TopicSwipeView: React.FC = () => {
+interface TopicSwipeViewProps {
+  onDigDeeper: (topic: Topic) => void;
+}
+
+const TopicSwipeView: React.FC<TopicSwipeViewProps> = ({ onDigDeeper }) => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<UserPreference[]>([]);
+  const [bucketId, setBucketId] = useState<string>('global');
+  const [snapshotDate, setSnapshotDate] = useState<string>('');
+  const [topicStartTs, setTopicStartTs] = useState<number>(Date.now());
   
   // Fetch topics from all services
   useEffect(() => {
@@ -86,39 +91,13 @@ const TopicSwipeView: React.FC = () => {
         } catch (err) {
           console.warn('Location not available, using default data');
         }
-        
-        // Fetch data from all services
-        const [twitterTopics, newsTopics] = await Promise.all([
-          twitterService.getTrendingTopics(),
-          newsService.getLocalNews(locationData)
-        ]);
-        
-        // Combine and deduplicate topics
-        const allTopics = [...twitterTopics, ...newsTopics];
-        const uniqueTopics = allTopics.filter((topic, index, self) => 
-          index === self.findIndex(t => t.title === topic.title)
-        );
-        
-        // Get user preferences for ranking
-        const topicScores = preferenceService.getAllTopicScores();
-        
-        // Sort by user preferences, then by relevance and trend score
-        uniqueTopics.sort((a, b) => {
-          // First sort by user preference score (descending)
-          const aPrefScore = topicScores[a.id] || 0;
-          const bPrefScore = topicScores[b.id] || 0;
-          
-          if (aPrefScore !== bPrefScore) {
-            return bPrefScore - aPrefScore;
-          }
-          
-          // Then sort by relevance and trend score
-          const aScore = (a.trendScore || 0) + (a.locationRelevance || 0);
-          const bScore = (b.trendScore || 0) + (b.locationRelevance || 0);
-          return bScore - aScore;
-        });
-        
-        setTopics(uniqueTopics);
+        const feed = await backendService.fetchFeed(locationData);
+        setBucketId(feed.bucketId || 'global');
+        setSnapshotDate(feed.snapshotDate || '');
+
+        setTopics(feed.topics || []);
+        setCurrentIndex(0);
+        setTopicStartTs(Date.now());
         setLoading(false);
       } catch (err) {
         console.error('Error fetching topics:', err);
@@ -129,6 +108,10 @@ const TopicSwipeView: React.FC = () => {
     
     fetchTopics();
   }, []);
+
+  useEffect(() => {
+    setTopicStartTs(Date.now());
+  }, [currentIndex]);
   
   const updatePreferences = (topicId: string, preference: number) => {
     const newPreference: UserPreference = {
@@ -152,6 +135,16 @@ const TopicSwipeView: React.FC = () => {
     // User doesn't like this topic, decrease its rank
     const currentTopic = topics[currentIndex];
     updatePreferences(currentTopic.id, -1);
+
+    const dwellMs = Date.now() - topicStartTs;
+    backendService.sendEvents({
+      bucketId,
+      snapshotDate,
+      events: [
+        { type: 'dwell_time', topicId: currentTopic.id, dwellMs },
+        { type: 'topic_swipe_left', topicId: currentTopic.id }
+      ]
+    }).catch(() => {});
     
     // Move to next topic
     if (currentIndex < topics.length - 1) {
@@ -166,6 +159,16 @@ const TopicSwipeView: React.FC = () => {
     // User likes this topic, increase its rank
     const currentTopic = topics[currentIndex];
     updatePreferences(currentTopic.id, 1);
+
+    const dwellMs = Date.now() - topicStartTs;
+    backendService.sendEvents({
+      bucketId,
+      snapshotDate,
+      events: [
+        { type: 'dwell_time', topicId: currentTopic.id, dwellMs },
+        { type: 'topic_swipe_right', topicId: currentTopic.id }
+      ]
+    }).catch(() => {});
     
     // Move to next topic
     if (currentIndex < topics.length - 1) {
@@ -178,8 +181,14 @@ const TopicSwipeView: React.FC = () => {
   
   const handleDigDeeper = () => {
     const currentTopic = topics[currentIndex];
-    console.log('Dig deeper clicked for:', currentTopic.title);
-    // In a full implementation, this would navigate to the detail view
+
+    backendService.sendEvents({
+      bucketId,
+      snapshotDate,
+      events: [{ type: 'topic_open', topicId: currentTopic.id }]
+    }).catch(() => {});
+
+    onDigDeeper(currentTopic);
   };
   
   if (loading) {
