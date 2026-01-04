@@ -70,7 +70,8 @@ export async function generateTopicsWithOpenAI(params: {
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept-Encoding': 'identity'
       },
       timeout: 25000
     }
