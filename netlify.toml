@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "build"
+  environment = { NODE_ENV = "production" }
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[template.environment]
+  REACT_APP_TWITTER_API_KEY = "Your Twitter API Key"
+  REACT_APP_TWITTER_API_SECRET = "Your Twitter API Secret"
+  REACT_APP_TWITTER_BEARER_TOKEN = "Your Twitter Bearer Token"
+  REACT_APP_NEWS_API_KEY = "Your News API Key"
+  REACT_APP_OPENAI_API_KEY = "Your OpenAI API Key"

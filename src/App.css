@@ -1,0 +1,42 @@
+.App {
+  text-align: center;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.App-header p {
+  margin: 5px 0 0 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+main {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .App-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .App-header p {
+    font-size: 0.8rem;
+  }
+}
