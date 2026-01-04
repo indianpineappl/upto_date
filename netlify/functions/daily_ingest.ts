@@ -27,10 +27,12 @@ function jsonResponse(statusCode: number, body: any) {
   };
 }
 
-export const handler: Handler = async () => {
+export const handler: Handler = async (event) => {
   const supabase = getSupabaseAdmin();
   const date = todayDateStringUTC();
   let runId: string | null = null;
+
+  const debug = event?.queryStringParameters?.debug === '1';
 
   try {
     const { data: runRow, error: runErr } = await supabase
@@ -151,6 +153,8 @@ export const handler: Handler = async () => {
       storedRssItems: rawItems.length
     });
   } catch (e) {
+    const err = e as any;
+    const message = err?.message || 'Server error';
     if (runId) {
       try {
         await supabase
@@ -168,6 +172,18 @@ export const handler: Handler = async () => {
         // ignore
       }
     }
-    return jsonResponse(500, { error: (e as Error).message || 'Server error' });
+
+    if (debug) {
+      return jsonResponse(200, {
+        ok: false,
+        error: message,
+        name: err?.name,
+        stack: err?.stack,
+        axiosStatus: err?.response?.status,
+        axiosData: err?.response?.data
+      });
+    }
+
+    return jsonResponse(500, { error: message });
   }
 };
