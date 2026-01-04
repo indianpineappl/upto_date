@@ -20,6 +20,14 @@ export class BackendService {
 
   private constructor() {}
 
+  private todayDateStringUTC(): string {
+    const now = new Date();
+    const yyyy = now.getUTCFullYear();
+    const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(now.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
   public static getInstance() {
     if (!BackendService.instance) {
       BackendService.instance = new BackendService();
@@ -52,8 +60,11 @@ export class BackendService {
   public async fetchFeed(location?: LocationData): Promise<FeedResponse> {
     const userId = this.getOrCreateUserId();
 
+    const date = this.todayDateStringUTC();
+
     const params: Record<string, string> = {
-      userId
+      userId,
+      date
     };
 
     if (location) {
