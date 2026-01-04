@@ -70,9 +70,10 @@ async function getUserScores(userId: string, topicIds: string[]) {
 }
 
 export const handler: Handler = async (event) => {
-  try {
-    const qs = event.queryStringParameters || {};
+  const qs = event.queryStringParameters || {};
+  const debug = qs.debug === '1';
 
+  try {
     const lat = qs.lat ? Number(qs.lat) : null;
     const lng = qs.lng ? Number(qs.lng) : null;
     const userId = qs.userId ? String(qs.userId) : 'anonymous';
@@ -138,6 +139,20 @@ export const handler: Handler = async (event) => {
       topics: rankedTopics
     });
   } catch (e) {
-    return jsonResponse(500, { error: (e as Error).message || 'Server error' });
+    const err = e as any;
+    const message = err?.message || 'Server error';
+
+    if (debug) {
+      return jsonResponse(200, {
+        ok: false,
+        error: message,
+        name: err?.name,
+        stack: err?.stack,
+        axiosStatus: err?.response?.status,
+        axiosData: err?.response?.data
+      });
+    }
+
+    return jsonResponse(500, { error: message });
   }
 };
