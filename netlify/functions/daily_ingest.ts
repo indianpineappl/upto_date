@@ -28,13 +28,12 @@ function jsonResponse(statusCode: number, body: any) {
 }
 
 export const handler: Handler = async (event) => {
-  const supabase = getSupabaseAdmin();
+  const debug = event?.queryStringParameters?.debug === '1';
   const date = todayDateStringUTC();
   let runId: string | null = null;
 
-  const debug = event?.queryStringParameters?.debug === '1';
-
   try {
+    const supabase = getSupabaseAdmin();
     const { data: runRow, error: runErr } = await supabase
       .from('ingestion_runs')
       .insert({ run_type: 'daily_ingest', status: 'running', details: { date } })
@@ -157,6 +156,7 @@ export const handler: Handler = async (event) => {
     const message = err?.message || 'Server error';
     if (runId) {
       try {
+        const supabase = getSupabaseAdmin();
         await supabase
           .from('ingestion_runs')
           .update({
