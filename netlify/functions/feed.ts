@@ -99,7 +99,7 @@ export const handler: Handler = async (event) => {
 
     // Lazy generation for the requested bucket only (traffic-driven)
     if (!snapshot) {
-      const rawItems = await fetchRssRawItems(250);
+      const rawItems = await fetchRssRawItems(80);
 
       const generated = await generateTopicsWithOpenAI({
         location: {

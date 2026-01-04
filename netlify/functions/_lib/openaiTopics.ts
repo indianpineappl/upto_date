@@ -45,12 +45,15 @@ export async function generateTopicsWithOpenAI(params: {
     throw new Error('Missing OPENAI_API_KEY');
   }
 
+  const model = process.env.LLM_MODEL || 'deepseek-chat';
+  const maxTokens = process.env.LLM_MAX_TOKENS ? Number(process.env.LLM_MAX_TOKENS) : 1200;
+
   const { system, user } = buildPrompt(params.location, params.rawItems);
 
   const response = await axios.post(
     'https://api.deepseek.com/v1/chat/completions',
     {
-      model: 'deepseek-reasoner',
+      model,
       messages: [
         {
           role: 'system',
@@ -62,13 +65,14 @@ export async function generateTopicsWithOpenAI(params: {
         }
       ],
       temperature: 0.4,
-      max_tokens: 2500
+      max_tokens: maxTokens
     },
     {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 25000
     }
   );
 
