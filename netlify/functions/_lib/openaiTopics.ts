@@ -48,9 +48,9 @@ export async function generateTopicsWithOpenAI(params: {
   const { system, user } = buildPrompt(params.location, params.rawItems);
 
   const response = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
+    'https://api.deepseek.com/v1/chat/completions',
     {
-      model: 'gpt-3.5-turbo',
+      model: 'deepseek-reasoner',
       messages: [
         {
           role: 'system',
