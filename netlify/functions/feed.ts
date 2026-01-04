@@ -1,8 +1,6 @@
 import type { Handler } from '@netlify/functions';
 import { bucketFallbackChain, toBucketId } from './_lib/geobucket';
 import { getSupabaseAdmin } from './_lib/supabase';
-import { fetchRssRawItems } from './_lib/rss';
-import { generateTopicsWithOpenAI } from './_lib/openaiTopics';
 
 function todayDateStringUTC() {
   const now = new Date();
@@ -97,23 +95,10 @@ export const handler: Handler = async (event) => {
       }
     }
 
-    // Lazy generation for the requested bucket only (traffic-driven)
     if (!snapshot) {
-      const rawItems = await fetchRssRawItems(80);
-
-      const generated = await generateTopicsWithOpenAI({
-        location: {
-          city: null,
-          country: null,
-          latitude: hasCoords ? lat : null,
-          longitude: hasCoords ? lng : null
-        },
-        rawItems
+      return jsonResponse(404, {
+        error: 'No snapshot available yet. Please try again shortly.'
       });
-
-      snapshot = generated;
-      snapshotBucketId = bucketId;
-      await storeSnapshot({ bucketId, date, snapshot });
     }
 
     const topics = Array.isArray(snapshot?.topics) ? snapshot.topics : [];
