@@ -1,4 +1,4 @@
-import axios from 'axios';
+import Parser from 'rss-parser';
 import { Topic, LocationData } from '../types';
 
 export interface NewsArticle {
@@ -17,14 +17,54 @@ export interface NewsTopic extends Topic {
   locationRelevance?: number;
 }
 
+// Define RSS feed sources
+const RSS_FEEDS = [
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Automobiles.xml', source: 'NYTimes Automobiles' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Baseball.xml', source: 'NYTimes Baseball' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Books/Review.xml', source: 'NYTimes Books Review' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Business.xml', source: 'NYTimes Business' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml', source: 'NYTimes Climate' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/CollegeBasketball.xml', source: 'NYTimes College Basketball' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/CollegeFootball.xml', source: 'NYTimes College Football' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Dance.xml', source: 'NYTimes Dance' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Dealbook.xml', source: 'NYTimes Dealbook' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/DiningandWine.xml', source: 'NYTimes Dining and Wine' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml', source: 'NYTimes Economy' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Education.xml', source: 'NYTimes Education' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/EnergyEnvironment.xml', source: 'NYTimes Energy Environment' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Europe.xml', source: 'NYTimes Europe' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/FashionandStyle.xml', source: 'NYTimes Fashion and Style' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Golf.xml', source: 'NYTimes Golf' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Health.xml', source: 'NYTimes Health' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Hockey.xml', source: 'NYTimes Hockey' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', source: 'NYTimes Home Page' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Jobs.xml', source: 'NYTimes Jobs' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Lens.xml', source: 'NYTimes Lens' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', source: 'NYTimes Middle East' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/MostEmailed.xml', source: 'NYTimes Most Emailed' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml', source: 'NYTimes Politics' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/RealEstate.xml', source: 'NYTimes Real Estate' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/SmallBusiness.xml', source: 'NYTimes Small Business' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Soccer.xml', source: 'NYTimes Soccer' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Tennis.xml', source: 'NYTimes Tennis' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml', source: 'NYTimes Technology' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/YourMoney.xml', source: 'NYTimes Your Money' },
+  { url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', source: 'NYTimes World' },
+];
+
+// Define popular news websites for crawling
+const NEWS_SITES = [
+  { baseUrl: 'https://www.bbc.com', source: 'BBC' },
+  { baseUrl: 'https://www.reuters.com', source: 'Reuters' },
+  { baseUrl: 'https://www.cnn.com', source: 'CNN' },
+];
+
 export class NewsService {
   private static instance: NewsService;
-  private baseUrl: string;
-  private apiKey: string;
+  private rssParser: Parser;
   
   private constructor() {
-    this.baseUrl = 'https://newsapi.org/v2';
-    this.apiKey = process.env.REACT_APP_NEWS_API_KEY || '';
+    this.rssParser = new Parser();
   }
   
   public static getInstance(): NewsService {
@@ -35,47 +75,76 @@ export class NewsService {
   }
   
   /**
+   * Fetch articles from RSS feeds
+   */
+  private async fetchFromRSSFeeds(count: number = 10): Promise<NewsArticle[]> {
+    const allArticles: NewsArticle[] = [];
+    
+    try {
+      // Fetch from multiple RSS feeds
+      for (const feed of RSS_FEEDS) {
+        try {
+          const rss = await this.rssParser.parseURL(feed.url);
+          
+          // Add articles from this feed
+          rss.items.slice(0, Math.ceil(count / RSS_FEEDS.length)).forEach((item, index) => {
+            if (item.title && item.pubDate) {
+              allArticles.push({
+                id: `rss-${feed.source}-${Date.now()}-${index}`,
+                title: item.title,
+                summary: item.contentSnippet || item.summary || 'No summary available',
+                source: feed.source,
+                url: item.link || '',
+                publishedAt: new Date(item.pubDate),
+                imageUrl: item.enclosure?.url
+              });
+            }
+          });
+        } catch (error) {
+          console.error(`Error fetching from RSS feed ${feed.url}:`, error);
+          // Continue with other feeds even if one fails
+        }
+      }
+      
+      // Sort by date and limit to requested count
+      return allArticles
+        .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+        .slice(0, count);
+    } catch (error) {
+      console.error('Error fetching from RSS feeds:', error);
+      return [];
+    }
+  }
+  
+  /**
+   * Simple web crawler for news sites (basic implementation)
+   */
+  /**
    * Get news articles for a location
    */
   public async getLocalNews(location?: LocationData): Promise<NewsTopic[]> {
     try {
-      // For location-based news, we would typically use the city name
-      // For now, we'll use a general query
-      let query = 'latest';
+      // Fetch articles from RSS feeds
+      const rssArticles = await this.fetchFromRSSFeeds(15);
       
-      if (location) {
-        // In a real implementation, we would reverse geocode the coordinates
-        // to get the city name and use it in the query
-        query = 'local';
+      // If we have location data, we would filter articles by location
+      // For now, we'll just use all articles
+      let relevantArticles = rssArticles;
+      
+      if (location && location.city) {
+        // In a real implementation, we would filter articles by location
+        // This is a simplified approach
+        console.log(`Filtering articles for location: ${location.city}`);
       }
       
-      const response = await axios.get(`${this.baseUrl}/everything`, {
-        params: {
-          q: query,
-          apiKey: this.apiKey,
-          pageSize: 10,
-          sortBy: 'publishedAt'
-        }
-      });
-      
-      // Transform News API response to our Topic format
-      return response.data.articles.map((article: any, index: number) => ({
+      // Transform articles to NewsTopic format
+      const topics: NewsTopic[] = relevantArticles.slice(0, 10).map((article, index) => ({
         id: `news-${index}`,
         title: article.title.substring(0, 50) + (article.title.length > 50 ? '...' : ''),
-        summary: article.description ? article.description.substring(0, 100) + (article.description.length > 100 ? '...' : '') : 'No summary available',
-        source: article.source.name,
+        summary: article.summary.substring(0, 100) + (article.summary.length > 100 ? '...' : ''),
+        source: article.source,
         locationRelevance: location ? 80 : 50, // Higher relevance for local news
-        articles: [
-          {
-            id: `article-${index}-1`,
-            title: article.title,
-            summary: article.description || 'No description available',
-            source: article.source.name,
-            url: article.url,
-            publishedAt: new Date(article.publishedAt),
-            imageUrl: article.urlToImage
-          }
-        ],
+        articles: [article],
         subTopics: [
           {
             id: `news-${index}-1`,
@@ -84,9 +153,11 @@ export class NewsService {
           }
         ]
       }));
+      
+      return topics;
     } catch (error) {
       console.error('Error fetching local news:', error);
-      // Fallback to mock data if API call fails
+      // Fallback to mock data if RSS fetching fails
       return [
         {
           id: 'news-1',
@@ -163,27 +234,24 @@ export class NewsService {
    */
   public async searchNews(query: string, count: number = 10): Promise<NewsArticle[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/everything`, {
-        params: {
-          q: query,
-          apiKey: this.apiKey,
-          pageSize: count,
-          sortBy: 'relevancy'
-        }
-      });
+      // Fetch articles from RSS feeds
+      const rssArticles = await this.fetchFromRSSFeeds(count * 2);
       
-      return response.data.articles.map((article: any) => ({
-        id: article.id || `article-${Math.random()}`,
-        title: article.title,
-        summary: article.description || 'No description available',
-        source: article.source.name,
-        url: article.url,
-        publishedAt: new Date(article.publishedAt),
-        imageUrl: article.urlToImage
-      }));
+      // Filter articles by query (simple title matching)
+      const filteredArticles = rssArticles.filter(article => 
+        article.title.toLowerCase().includes(query.toLowerCase()) ||
+        article.summary.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      // If we don't have enough articles, crawl news sites
+      let resultArticles = filteredArticles.slice(0, count);
+      
+      // Note: web crawling is disabled in the client build
+
+      return resultArticles.slice(0, count);
     } catch (error) {
       console.error('Error searching news:', error);
-      // Return mock data if API call fails
+      // Return mock data if RSS fetching fails
       return [
         {
           id: 'search-1',
@@ -210,26 +278,16 @@ export class NewsService {
    */
   public async getTopHeadlines(): Promise<NewsArticle[]> {
     try {
-      const response = await axios.get(`${this.baseUrl}/top-headlines`, {
-        params: {
-          apiKey: this.apiKey,
-          country: 'us', // Default to US, could be customized
-          pageSize: 10
-        }
-      });
+      // Fetch articles from RSS feeds (these are typically headlines)
+      const rssArticles = await this.fetchFromRSSFeeds(10);
       
-      return response.data.articles.map((article: any) => ({
-        id: article.id || `headline-${Math.random()}`,
-        title: article.title,
-        summary: article.description || 'No description available',
-        source: article.source.name,
-        url: article.url,
-        publishedAt: new Date(article.publishedAt),
-        imageUrl: article.urlToImage
-      }));
+      // Sort by date to get the most recent
+      return rssArticles
+        .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime())
+        .slice(0, 10);
     } catch (error) {
       console.error('Error fetching top headlines:', error);
-      // Return mock data if API call fails
+      // Return mock data if RSS fetching fails
       return [
         {
           id: 'headline-1',
