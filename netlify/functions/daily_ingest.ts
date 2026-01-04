@@ -1,6 +1,4 @@
 import type { Handler } from '@netlify/functions';
-import { fetchRssRawItems } from './_lib/rss';
-import { generateTopicsWithOpenAI } from './_lib/openaiTopics';
 import { getSupabaseAdmin } from './_lib/supabase';
 import { bucketIdToApproxCoords } from './_lib/geobucket';
 
@@ -66,6 +64,7 @@ export const handler: Handler = async (event) => {
 
     const bucketsToGenerate = ['global', ...topBuckets];
 
+    const { fetchRssRawItems } = await import('./_lib/rss');
     const fetchedRawItems = await fetchRssRawItems(120);
 
     // Persist RSS items for observability / reprocessing
@@ -100,6 +99,8 @@ export const handler: Handler = async (event) => {
       url: r.url ? String(r.url) : null,
       published_at: r.published_at ? String(r.published_at) : null
     }));
+
+    const { generateTopicsWithOpenAI } = await import('./_lib/openaiTopics');
 
     for (const bucketId of bucketsToGenerate) {
       const coords = bucketIdToApproxCoords(bucketId);
